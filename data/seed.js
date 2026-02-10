@@ -1,18 +1,22 @@
 const mongoose = require("mongoose")
+const bcrypt = require("bcrypt")
+const dotenv = require("dotenv")
+
+dotenv.config()
 
 const isProd = process.env.NODE_ENV === "production"
 
 const sampleAdmin = {
   name: "Admin User",
   email: process.env.SEED_ADMIN_EMAIL || "admin@local.dev",
-  password: process.env.SEED_ADMIN_PASSWORD || "changeme123",
+  password: process.env.SEED_ADMIN_PASSWORD || "Changeme123",
   role: "admin",
 }
 
 const sampleUser = {
   name: "John Doe",
   email: process.env.SEED_USER_EMAIL || "user@local.dev",
-  password: process.env.SEED_USER_PASSWORD || "changeme123",
+  password: process.env.SEED_USER_PASSWORD || "Changeme123",
   role: "user",
 }
 
@@ -47,6 +51,10 @@ const seed = async () => {
     await Bookmark.deleteMany({})
 
     console.log("Creating users...")
+    const passwordHashAdmin = await bcrypt.hash(sampleAdmin.password, 10)
+    const passwordHashUser = await bcrypt.hash(sampleUser.password, 10)
+    sampleAdmin.password = passwordHashAdmin
+    sampleUser.password = passwordHashUser
     const { insertedId: adminId } = await User.insertOne(sampleAdmin)
     await User.insertOne(sampleUser)
 
