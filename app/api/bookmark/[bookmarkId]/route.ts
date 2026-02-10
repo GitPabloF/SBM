@@ -1,5 +1,6 @@
 import { connectDatabase } from "@/server/config/database"
 import { auth } from "@/server/middleware/auth"
+import { checkRateLimit } from "@/server/middleware/apiLimitre"
 import { NextRequest, NextResponse } from "next/server"
 import bookmarkService from "@/server/services/bookmark.service"
 
@@ -7,6 +8,10 @@ type Params = { params: Promise<{ bookmarkId: string }> }
 
 export async function GET(request: NextRequest, { params }: Params) {
   try {
+    // Limit to 30 requests per 15 minutes to prevent abuse
+    const limited = await checkRateLimit(request)
+    if (limited) return limited
+
     const authentication = auth(request)
     if (!authentication.success) return authentication.response
 
@@ -29,7 +34,10 @@ export async function GET(request: NextRequest, { params }: Params) {
 
     if (message === "NO_USER_ID_OR_BOOKMARK_ID") {
       return NextResponse.json(
-        { success: false, error: "You should provide a user ID and bookmark ID" },
+        {
+          success: false,
+          error: "You should provide a user ID and bookmark ID",
+        },
         { status: 400 },
       )
     }
@@ -41,7 +49,10 @@ export async function GET(request: NextRequest, { params }: Params) {
     }
     if (message === "UNAUTHORIZED") {
       return NextResponse.json(
-        { success: false, error: "You are not authorized to fetch this bookmark" },
+        {
+          success: false,
+          error: "You are not authorized to fetch this bookmark",
+        },
         { status: 403 },
       )
     }
@@ -55,6 +66,9 @@ export async function GET(request: NextRequest, { params }: Params) {
 
 export async function PUT(request: NextRequest, { params }: Params) {
   try {
+    const limited = await checkRateLimit(request)
+    if (limited) return limited
+
     const authentication = auth(request)
     if (!authentication.success) return authentication.response
 
@@ -82,7 +96,10 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
     if (message === "NO_USER_ID_OR_BOOKMARK_ID") {
       return NextResponse.json(
-        { success: false, error: "You should provide a user ID and bookmark ID" },
+        {
+          success: false,
+          error: "You should provide a user ID and bookmark ID",
+        },
         { status: 400 },
       )
     }
@@ -94,7 +111,10 @@ export async function PUT(request: NextRequest, { params }: Params) {
     }
     if (message === "UNAUTHORIZED") {
       return NextResponse.json(
-        { success: false, error: "You are not authorized to update this bookmark" },
+        {
+          success: false,
+          error: "You are not authorized to update this bookmark",
+        },
         { status: 403 },
       )
     }
@@ -108,6 +128,9 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
 export async function DELETE(request: NextRequest, { params }: Params) {
   try {
+    const limited = await checkRateLimit(request)
+    if (limited) return limited
+
     const authentication = auth(request)
     if (!authentication.success) return authentication.response
 
@@ -126,7 +149,10 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
     if (message === "NO_USER_ID_OR_BOOKMARK_ID") {
       return NextResponse.json(
-        { success: false, error: "You should provide a user ID and bookmark ID" },
+        {
+          success: false,
+          error: "You should provide a user ID and bookmark ID",
+        },
         { status: 400 },
       )
     }
@@ -138,7 +164,10 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     }
     if (message === "UNAUTHORIZED") {
       return NextResponse.json(
-        { success: false, error: "You are not authorized to delete this bookmark" },
+        {
+          success: false,
+          error: "You are not authorized to delete this bookmark",
+        },
         { status: 403 },
       )
     }

@@ -3,6 +3,7 @@ import { loginSchema } from "@/server/validation/auth.schema"
 import authService from "@/server/services/auth.service"
 import { createAccessToken, createRefreshToken } from "@/server/utils/jwt.utile"
 import { connectDatabase } from "@/server/config/database"
+import { checkRateLimit } from "@/server/middleware/apiLimitre"
 import { NextResponse } from "next/server"
 
 /**
@@ -12,6 +13,13 @@ import { NextResponse } from "next/server"
  */
 export async function POST(request: Request) {
   try {
+    // Limit to 10 requests per 15 minutes to prevent brute-force attacks
+    const limited = await checkRateLimit(request, {
+      windowMs: 15 * 60 * 1000,
+      max: 10,
+    })
+    if (limited) return limited
+
     const body = await request.json()
 
     // validate the request body

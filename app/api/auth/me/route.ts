@@ -1,10 +1,15 @@
 import { auth } from "@/server/middleware/auth"
 import authService from "@/server/services/auth.service"
 import { connectDatabase } from "@/server/config/database"
+import { checkRateLimit } from "@/server/middleware/apiLimitre"
 import { NextResponse } from "next/server"
 
 export async function GET(request: Request) {
   try {
+    // Limit to 30 requests per 15 minutes to prevent abuse
+    const limited = await checkRateLimit(request)
+    if (limited) return limited
+
     const authentication = auth(request)
     if (!authentication.success) return authentication.response
 
@@ -35,6 +40,9 @@ export async function GET(request: Request) {
 
 export async function PUT(request: Request) {
   try {
+    const limited = await checkRateLimit(request)
+    if (limited) return limited
+
     const authentication = auth(request)
     if (!authentication.success) return authentication.response
 
@@ -80,6 +88,9 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const limited = await checkRateLimit(request)
+    if (limited) return limited
+
     const authentication = auth(request)
     if (!authentication.success) return authentication.response
 

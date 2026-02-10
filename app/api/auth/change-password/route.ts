@@ -1,10 +1,18 @@
 import { auth } from "@/server/middleware/auth"
 import authService from "@/server/services/auth.service"
 import { connectDatabase } from "@/server/config/database"
+import { checkRateLimit } from "@/server/middleware/apiLimitre"
 import { NextResponse } from "next/server"
 
 export async function PUT(request: Request) {
   try {
+    // Limit to 10 requests per 15 minutes to prevent brute-force attacks
+    const limited = await checkRateLimit(request, {
+      windowMs: 15 * 60 * 1000,
+      max: 10,
+    })
+    if (limited) return limited
+
     const authentication = auth(request)
     if (!authentication.success) return authentication.response
 

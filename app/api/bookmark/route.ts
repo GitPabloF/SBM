@@ -2,11 +2,16 @@ import { connectDatabase } from "@/server/config/database"
 import { auth } from "@/server/middleware/auth"
 import { validate } from "@/server/middleware/validate"
 import { createBookmarkSchema } from "@/server/validation/bookmark.schemas"
+import { checkRateLimit } from "@/server/middleware/apiLimitre"
 import { NextRequest, NextResponse } from "next/server"
 import bookmarkService from "@/server/services/bookmark.service"
 
 export async function GET(request: NextRequest) {
   try {
+    // Limit to 30 requests per 15 minutes to prevent abuse
+    const limited = await checkRateLimit(request)
+    if (limited) return limited
+
     const authentication = auth(request)
     if (!authentication.success) return authentication.response
 
@@ -51,6 +56,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const limited = await checkRateLimit(request)
+    if (limited) return limited
+
     const authentication = auth(request)
     if (!authentication.success) return authentication.response
 
