@@ -1,10 +1,8 @@
 import jwt from "jsonwebtoken"
-import type { StringValue } from "ms"
+import { authTtl } from "./auth"
 
-const accessTokenExpiration = (process.env.JWT_ACCESS_TOKEN_EXPIRATION ||
-  "15m") as StringValue
-const refreshTokenExpiration = (process.env.JWT_REFRESH_TOKEN_EXPIRATION ||
-  "7d") as StringValue
+const accessTokenExpiration = authTtl.access.jwt
+const refreshTokenExpiration = authTtl.refresh.jwt
 
 export interface JWTPayload {
   id: string

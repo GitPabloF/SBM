@@ -1,3 +1,5 @@
+import { authTtl } from "./auth"
+
 export const isProd = process.env.NODE_ENV === "production"
 
 export const accessCookieOptions = {
@@ -5,7 +7,7 @@ export const accessCookieOptions = {
     secure: isProd,
     sameSite: "lax" as const,
     path: "/",
-    maxAge: 60 * 60 * 1 // 1 hour   
+    maxAge: authTtl.access.cookieMaxAge
 }
 
 export const refreshCookieOptions = {
@@ -13,7 +15,7 @@ export const refreshCookieOptions = {
     secure: isProd,
     sameSite: "lax" as const,
     path: "/",
-    maxAge: 60 * 60 * 24 * 14 // 2 week
+    maxAge: authTtl.refresh.cookieMaxAge
 }
 
 
