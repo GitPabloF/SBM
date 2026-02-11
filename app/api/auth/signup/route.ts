@@ -5,6 +5,8 @@ import { createAccessToken, createRefreshToken } from "@/server/utils/jwt.utile"
 import { connectDatabase } from "@/server/config/database"
 import { checkRateLimit } from "@/server/middleware/apiLimitre"
 import { NextResponse } from "next/server"
+import { accessCookieOptions, refreshCookieOptions, isProd } from "@/server/utils/cookies"
+
 
 export async function POST(request: Request) {
   try {
@@ -33,12 +35,17 @@ export async function POST(request: Request) {
       email: user.email,
     })
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       success: true,
       message: "User created successfully",
-      accessToken,
-      refreshToken,
+      user: { id: user._id.toString(), name: user.name, email: user.email, role: user.role },
+      ...(isProd ? {} : { accessToken, refreshToken }),
     })
+
+    res.cookies.set("accessToken", accessToken, accessCookieOptions)
+    res.cookies.set("refreshToken", refreshToken, refreshCookieOptions)
+
+    return res
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     if (errorMessage === "USER_ALREADY_EXISTS") {
@@ -53,7 +60,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        error: `an error has occured: ${error}`,
+        error: "an error has occured",
       },
       { status: 500 },
     )

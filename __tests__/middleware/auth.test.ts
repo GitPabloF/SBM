@@ -7,9 +7,10 @@ beforeAll(() => {
   process.env.JWT_REFRESH_SECRET = "test-refresh-secret"
 })
 
-function makeRequest(authHeader?: string): Request {
+function makeRequest(authHeader?: string, cookieHeader?: string): Request {
   const headers = new Headers()
   if (authHeader) headers.set("authorization", authHeader)
+  if (cookieHeader) headers.set("cookie", cookieHeader)
   return new Request("http://localhost/api/test", { headers })
 }
 
@@ -22,6 +23,17 @@ describe("auth middleware", () => {
     if (result.success) {
       expect(result.user.id).toBe("user1")
       expect(result.user.email).toBe("a@b.com")
+    }
+  })
+
+  it("returns success with valid accessToken cookie", () => {
+    const token = createAccessToken({ id: "user2", email: "cookie@user.com" })
+    const result = auth(makeRequest(undefined, `accessToken=${token}`))
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.user.id).toBe("user2")
+      expect(result.user.email).toBe("cookie@user.com")
     }
   })
 

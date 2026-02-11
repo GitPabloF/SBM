@@ -1,5 +1,6 @@
 import authService from "@/server/services/auth.service"
 import { connectDatabase } from "@/server/config/database"
+import { accessCookieOptions, getCookieValue, refreshCookieOptions, isProd } from "@/server/utils/cookies";
 import { checkRateLimit } from "@/server/middleware/apiLimitre"
 import { NextResponse } from "next/server"
 
@@ -12,8 +13,8 @@ export async function POST(request: Request) {
     })
     if (limited) return limited
 
-    const body = await request.json()
-    const { refreshToken } = body
+    const refreshToken = getCookieValue(request, "refreshToken")
+
 
     if (!refreshToken) {
       return NextResponse.json(
@@ -26,11 +27,16 @@ export async function POST(request: Request) {
 
     const accessToken = await authService.refreshAccessToken(refreshToken)
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       success: true,
       message: "Token refreshed successfully",
-      accessToken,
+      ...(isProd ? {} : { accessToken }),
     })
+
+    res.cookies.set("accessToken", accessToken, accessCookieOptions)
+    res.cookies.set("refreshToken", refreshToken, refreshCookieOptions)
+
+    return res
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
 

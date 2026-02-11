@@ -5,6 +5,8 @@ import { createAccessToken, createRefreshToken } from "@/server/utils/jwt.utile"
 import { connectDatabase } from "@/server/config/database"
 import { checkRateLimit } from "@/server/middleware/apiLimitre"
 import { NextResponse } from "next/server"
+import { accessCookieOptions, refreshCookieOptions, isProd } from "@/server/utils/cookies"
+
 
 /**
  * Handle user login requests. Validates the request body, checks user credentials, and returns access and refresh tokens if successful.
@@ -40,12 +42,18 @@ export async function POST(request: Request) {
       email: user.email,
     })
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       success: true,
       message: "Login successful",
-      accessToken,
-      refreshToken,
+      user: { id: user._id.toString(), name: user.name, email: user.email, role: user.role },
+      ...(isProd ? {} : { accessToken, refreshToken }), // only include access and refresh tokens in non-production environment
     })
+
+    // cookies httpOnly
+    res.cookies.set("accessToken", accessToken, accessCookieOptions)
+    res.cookies.set("refreshToken", refreshToken, refreshCookieOptions)
+
+    return res
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
 
