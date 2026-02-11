@@ -1,3 +1,4 @@
+import Image from "next/image"
 import { IBookmark as Bookmark } from "@/server/models/Bookmark"
 
 type BookmarkCardProps = {
@@ -5,17 +6,49 @@ type BookmarkCardProps = {
 }
 
 export default function BookmarkCard({ bookmark }: BookmarkCardProps) {
+  const hostname =
+    bookmark.url.replace(/^https?:\/\//, "").split("/")[0] || bookmark.url
+
   return (
     <a
       href={bookmark.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="block border p-4 rounded-xl hover:bg-gray-50"
+      className="group block overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
     >
-      <div className="font-medium">{bookmark.title}</div>
-      <div className="text-sm text-gray-500">{bookmark.url}</div>
-      {/* // to put as backgroundImage */}
-      <img src={bookmark.coverUrl} alt={bookmark.title} />
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="truncate text-base font-medium text-slate-900">
+            {bookmark.title || hostname}
+          </h2>
+          <p className="mt-1 truncate text-xs text-slate-500">{hostname}</p>
+        </div>
+      </div>
+
+      {bookmark.tags && bookmark.tags.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {bookmark.tags.map((tag, index) => (
+            <span
+              key={`${tag}-${index}`}
+              className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600"
+            >
+              #{tag}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {bookmark.coverUrl && (
+        <div className="mt-4 overflow-hidden rounded-xl border border-slate-100 bg-slate-50">
+          <Image
+            src={bookmark.coverUrl}
+            alt={bookmark.title || "Bookmark cover"}
+            width={800}
+            height={400}
+            className="h-36 w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+          />
+        </div>
+      )}
     </a>
   )
 }
