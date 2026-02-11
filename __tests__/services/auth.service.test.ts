@@ -22,6 +22,29 @@ import authService from "@/server/services/auth.service"
 import { User } from "@/server/models/User"
 import { verifyRefreshToken } from "@/server/utils/jwt.utile"
 
+// Type for mocked user data - independent from IUser to avoid ObjectId conflicts
+interface MockUser {
+  _id?: string
+  name?: string
+  email?: string
+  password?: string
+  role?: string
+  save?: () => Promise<void>
+}
+
+// Type-safe mock helpers
+const mockUserCreate = (value: MockUser) =>
+  (User.create as ReturnType<typeof vi.fn>).mockResolvedValue(value)
+
+const mockUserFindOne = (value: MockUser | null) =>
+  (User.findOne as ReturnType<typeof vi.fn>).mockResolvedValue(value)
+
+const mockUserFindById = (value: MockUser | null) =>
+  (User.findById as ReturnType<typeof vi.fn>).mockResolvedValue(value)
+
+const mockUserFindByIdAndDelete = (value: MockUser | null) =>
+  (User.findByIdAndDelete as ReturnType<typeof vi.fn>).mockResolvedValue(value)
+
 beforeAll(() => {
   process.env.JWT_SECRET = "test-secret"
   process.env.JWT_REFRESH_SECRET = "test-refresh-secret"
@@ -33,8 +56,8 @@ beforeEach(() => {
 
 describe("authService.createUser", () => {
   it("creates a user with hashed password", async () => {
-    vi.mocked(User.findOne).mockResolvedValue(null)
-    vi.mocked(User.create).mockResolvedValue({
+    mockUserFindOne(null)
+    mockUserCreate({
       _id: "id1",
       name: "John",
       email: "john@test.com",
@@ -64,7 +87,7 @@ describe("authService.createUser", () => {
   })
 
   it("throws if user already exists", async () => {
-    vi.mocked(User.findOne).mockResolvedValue({ email: "john@test.com" })
+    mockUserFindOne({ email: "john@test.com" })
 
     await expect(
       authService.createUser("John", "john@test.com", "Password1"),
@@ -81,8 +104,8 @@ describe("authService.createUser", () => {
   })
 
   it("defaults name to 'User' when empty", async () => {
-    vi.mocked(User.findOne).mockResolvedValue(null)
-    vi.mocked(User.create).mockResolvedValue({
+    mockUserFindOne(null)
+    mockUserCreate({
       _id: "id1",
       name: "User",
       email: "a@b.com",
@@ -99,7 +122,7 @@ describe("authService.createUser", () => {
 describe("authService.validateUser", () => {
   it("returns user on valid credentials", async () => {
     const hashed = await bcrypt.hash("Password1", 10)
-    vi.mocked(User.findOne).mockResolvedValue({
+    mockUserFindOne({
       _id: "id1",
       email: "a@b.com",
       password: hashed,
@@ -111,7 +134,7 @@ describe("authService.validateUser", () => {
   })
 
   it("throws USER_NOT_FOUND for unknown email", async () => {
-    vi.mocked(User.findOne).mockResolvedValue(null)
+    mockUserFindOne(null)
 
     await expect(
       authService.validateUser("unknown@test.com", "Password1"),
@@ -120,7 +143,7 @@ describe("authService.validateUser", () => {
 
   it("throws PASSWORD_INCORRECT on wrong password", async () => {
     const hashed = await bcrypt.hash("Password1", 10)
-    vi.mocked(User.findOne).mockResolvedValue({
+    mockUserFindOne({
       _id: "id1",
       email: "a@b.com",
       password: hashed,
@@ -138,7 +161,7 @@ describe("authService.refreshAccessToken", () => {
       id: "id1",
       email: "a@b.com",
     })
-    vi.mocked(User.findById).mockResolvedValue({
+    mockUserFindById({
       _id: "id1",
       email: "a@b.com",
     })
@@ -158,7 +181,7 @@ describe("authService.refreshAccessToken", () => {
       id: "id1",
       email: "a@b.com",
     })
-    vi.mocked(User.findById).mockResolvedValue(null)
+    mockUserFindById(null)
 
     await expect(
       authService.refreshAccessToken("valid-refresh"),
@@ -168,8 +191,8 @@ describe("authService.refreshAccessToken", () => {
 
 describe("authService.deleteUser", () => {
   it("deletes an existing user", async () => {
-    vi.mocked(User.findById).mockResolvedValue({ _id: "id1" })
-    vi.mocked(User.findByIdAndDelete).mockResolvedValue(null)
+    mockUserFindById({ _id: "id1" })
+    mockUserFindByIdAndDelete(null)
 
     const result = await authService.deleteUser("id1")
     expect(result.message).toBe("User deleted successfully")
@@ -177,7 +200,7 @@ describe("authService.deleteUser", () => {
   })
 
   it("throws USER_NOT_FOUND for unknown ID", async () => {
-    vi.mocked(User.findById).mockResolvedValue(null)
+    mockUserFindById(null)
 
     await expect(authService.deleteUser("unknown")).rejects.toThrow(
       "USER_NOT_FOUND",
@@ -193,7 +216,7 @@ describe("authService.changePassword", () => {
   it("changes password successfully", async () => {
     const hashed = await bcrypt.hash("OldPass1", 10)
     const mockUser = { _id: "id1", password: hashed, save: vi.fn() }
-    vi.mocked(User.findById).mockResolvedValue(mockUser)
+    mockUserFindById(mockUser as MockUser)
 
     const result = await authService.changePassword("id1", "OldPass1", "NewPass1")
     expect(result.message).toBe("Password changed successfully")
@@ -204,7 +227,7 @@ describe("authService.changePassword", () => {
 
   it("throws on incorrect current password", async () => {
     const hashed = await bcrypt.hash("OldPass1", 10)
-    vi.mocked(User.findById).mockResolvedValue({
+    mockUserFindById({
       _id: "id1",
       password: hashed,
       save: vi.fn(),
@@ -224,7 +247,7 @@ describe("authService.updateUser", () => {
       email: "a@b.com",
       save: vi.fn(),
     }
-    vi.mocked(User.findById).mockResolvedValue(mockUser)
+    mockUserFindById(mockUser as MockUser)
 
     const result = await authService.updateUser("id1", "New Name")
     expect(result.message).toBe("User updated successfully")

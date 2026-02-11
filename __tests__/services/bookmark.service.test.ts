@@ -1,15 +1,29 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
+import bookmarkService from "@/server/services/bookmark.service"
+import { Bookmark } from "@/server/models/Bookmark"
+import { redisUtils } from "@/server/utils/redis"
+
+// Type for mocked bookmark data - independent from IBookmark to avoid ObjectId conflicts
+interface MockBookmark {
+  _id?: string
+  userId?: string | { toString: () => string }
+  url?: string
+  title?: string
+  coverUrl?: string
+  tags?: string[]
+}
 
 // Mock dependencies
 vi.mock("@/server/models/Bookmark", () => {
-  const mockBookmark = {
-    find: vi.fn(),
-    findById: vi.fn(),
-    findByIdAndUpdate: vi.fn(),
-    findByIdAndDelete: vi.fn(),
-    create: vi.fn(),
+  return {
+    Bookmark: {
+      find: vi.fn(),
+      findById: vi.fn(),
+      findByIdAndUpdate: vi.fn(),
+      findByIdAndDelete: vi.fn(),
+      create: vi.fn(),
+    },
   }
-  return { Bookmark: mockBookmark }
 })
 
 vi.mock("@/server/utils/redis", () => ({
@@ -31,9 +45,21 @@ vi.mock("@/server/utils/metadata-extractor", () => ({
   },
 }))
 
-import bookmarkService from "@/server/services/bookmark.service"
-import { Bookmark } from "@/server/models/Bookmark"
-import { redisUtils } from "@/server/utils/redis"
+// Type-safe mock helpers
+const mockBookmarkCreate = (value: MockBookmark) =>
+  (Bookmark.create as ReturnType<typeof vi.fn>).mockResolvedValue(value)
+
+const mockBookmarkFind = (value: MockBookmark[]) =>
+  (Bookmark.find as ReturnType<typeof vi.fn>).mockResolvedValue(value)
+
+const mockBookmarkFindById = (value: MockBookmark | null) =>
+  (Bookmark.findById as ReturnType<typeof vi.fn>).mockResolvedValue(value)
+
+const mockBookmarkFindByIdAndUpdate = (value: MockBookmark | null) =>
+  (Bookmark.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(value)
+
+const mockBookmarkFindByIdAndDelete = (value: MockBookmark | null) =>
+  (Bookmark.findByIdAndDelete as ReturnType<typeof vi.fn>).mockResolvedValue(value)
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -41,14 +67,15 @@ beforeEach(() => {
 
 describe("bookmarkService.createBookmark", () => {
   it("creates a bookmark with auto-extracted metadata", async () => {
-    vi.mocked(Bookmark.create).mockResolvedValue({
+    const mockBookmark: MockBookmark = {
       _id: "bm1",
       userId: "user1",
       url: "https://example.com",
       title: "Example Page",
       coverUrl: "https://example.com/img.jpg",
       tags: ["dev"],
-    })
+    }
+    mockBookmarkCreate(mockBookmark)
 
     const result = await bookmarkService.createBookmark(
       "user1",
@@ -72,15 +99,15 @@ describe("bookmarkService.createBookmark", () => {
     await expect(
       bookmarkService.createBookmark("", "https://example.com"),
     ).rejects.toThrow("NO_USER_ID_OR_URL")
-    await expect(
-      bookmarkService.createBookmark("user1", ""),
-    ).rejects.toThrow("NO_USER_ID_OR_URL")
+    await expect(bookmarkService.createBookmark("user1", "")).rejects.toThrow(
+      "NO_USER_ID_OR_URL",
+    )
   })
 })
 
 describe("bookmarkService.getBookmarks", () => {
   it("returns cached result on cache hit", async () => {
-    const cached = [{ _id: "bm1", url: "https://example.com" }]
+    const cached: MockBookmark[] = [{ _id: "bm1", url: "https://example.com" }]
     vi.mocked(redisUtils.get).mockResolvedValue(cached)
 
     const result = await bookmarkService.getBookmarks("user1")
@@ -90,8 +117,8 @@ describe("bookmarkService.getBookmarks", () => {
 
   it("queries DB on cache miss and caches result", async () => {
     vi.mocked(redisUtils.get).mockResolvedValue(null)
-    const bookmarks = [{ _id: "bm1", url: "https://example.com" }]
-    vi.mocked(Bookmark.find).mockResolvedValue(bookmarks)
+    const bookmarks: MockBookmark[] = [{ _id: "bm1", url: "https://example.com" }]
+    mockBookmarkFind(bookmarks)
 
     const result = await bookmarkService.getBookmarks("user1")
     expect(Bookmark.find).toHaveBeenCalledWith({ userId: "user1" })
@@ -101,7 +128,7 @@ describe("bookmarkService.getBookmarks", () => {
 
   it("builds query with tags filter", async () => {
     vi.mocked(redisUtils.get).mockResolvedValue(null)
-    vi.mocked(Bookmark.find).mockResolvedValue([])
+    mockBookmarkFind([])
 
     await bookmarkService.getBookmarks("user1", ["js", "react"])
     expect(Bookmark.find).toHaveBeenCalledWith({
@@ -112,7 +139,7 @@ describe("bookmarkService.getBookmarks", () => {
 
   it("builds query with title filter", async () => {
     vi.mocked(redisUtils.get).mockResolvedValue(null)
-    vi.mocked(Bookmark.find).mockResolvedValue([])
+    mockBookmarkFind([])
 
     await bookmarkService.getBookmarks("user1", undefined, "tutorial")
     expect(Bookmark.find).toHaveBeenCalledWith({
@@ -125,11 +152,12 @@ describe("bookmarkService.getBookmarks", () => {
 describe("bookmarkService.getBookmarkByID", () => {
   it("returns bookmark for valid owner", async () => {
     vi.mocked(redisUtils.get).mockResolvedValue(null)
-    vi.mocked(Bookmark.findById).mockResolvedValue({
+    const mockBookmark: MockBookmark = {
       _id: "bm1",
       userId: { toString: () => "user1" },
       url: "https://example.com",
-    })
+    }
+    mockBookmarkFindById(mockBookmark)
 
     const result = await bookmarkService.getBookmarkByID("user1", "bm1")
     expect(result.url).toBe("https://example.com")
@@ -137,10 +165,11 @@ describe("bookmarkService.getBookmarkByID", () => {
 
   it("throws UNAUTHORIZED for wrong owner", async () => {
     vi.mocked(redisUtils.get).mockResolvedValue(null)
-    vi.mocked(Bookmark.findById).mockResolvedValue({
+    const mockBookmark: MockBookmark = {
       _id: "bm1",
       userId: { toString: () => "other-user" },
-    })
+    }
+    mockBookmarkFindById(mockBookmark)
 
     await expect(
       bookmarkService.getBookmarkByID("user1", "bm1"),
@@ -149,7 +178,7 @@ describe("bookmarkService.getBookmarkByID", () => {
 
   it("throws BOOKMARK_NOT_FOUND for unknown id", async () => {
     vi.mocked(redisUtils.get).mockResolvedValue(null)
-    vi.mocked(Bookmark.findById).mockResolvedValue(null)
+    mockBookmarkFindById(null)
 
     await expect(
       bookmarkService.getBookmarkByID("user1", "unknown"),
@@ -159,14 +188,16 @@ describe("bookmarkService.getBookmarkByID", () => {
 
 describe("bookmarkService.updateBookmark", () => {
   it("updates bookmark fields and invalidates cache", async () => {
-    vi.mocked(Bookmark.findById).mockResolvedValue({
+    const existingBookmark: MockBookmark = {
       _id: "bm1",
       userId: { toString: () => "user1" },
-    })
-    vi.mocked(Bookmark.findByIdAndUpdate).mockResolvedValue({
+    }
+    const updatedBookmark: MockBookmark = {
       _id: "bm1",
       title: "New Title",
-    })
+    }
+    mockBookmarkFindById(existingBookmark)
+    mockBookmarkFindByIdAndUpdate(updatedBookmark)
 
     const result = await bookmarkService.updateBookmark(
       "user1",
@@ -187,10 +218,11 @@ describe("bookmarkService.updateBookmark", () => {
   })
 
   it("throws UNAUTHORIZED for wrong owner", async () => {
-    vi.mocked(Bookmark.findById).mockResolvedValue({
+    const mockBookmark: MockBookmark = {
       _id: "bm1",
       userId: { toString: () => "other-user" },
-    })
+    }
+    mockBookmarkFindById(mockBookmark)
 
     await expect(
       bookmarkService.updateBookmark("user1", "bm1", "title"),
@@ -200,11 +232,12 @@ describe("bookmarkService.updateBookmark", () => {
 
 describe("bookmarkService.deleteBookmark", () => {
   it("deletes bookmark and invalidates cache", async () => {
-    vi.mocked(Bookmark.findById).mockResolvedValue({
+    const mockBookmark: MockBookmark = {
       _id: "bm1",
       userId: { toString: () => "user1" },
-    })
-    vi.mocked(Bookmark.findByIdAndDelete).mockResolvedValue(null)
+    }
+    mockBookmarkFindById(mockBookmark)
+    mockBookmarkFindByIdAndDelete(null)
 
     const result = await bookmarkService.deleteBookmark("user1", "bm1")
     expect(result.message).toBe("Bookmark removed")
@@ -214,10 +247,11 @@ describe("bookmarkService.deleteBookmark", () => {
   })
 
   it("throws UNAUTHORIZED for wrong owner", async () => {
-    vi.mocked(Bookmark.findById).mockResolvedValue({
+    const mockBookmark: MockBookmark = {
       _id: "bm1",
       userId: { toString: () => "other-user" },
-    })
+    }
+    mockBookmarkFindById(mockBookmark)
 
     await expect(
       bookmarkService.deleteBookmark("user1", "bm1"),
@@ -225,7 +259,7 @@ describe("bookmarkService.deleteBookmark", () => {
   })
 
   it("throws BOOKMARK_NOT_FOUND for unknown id", async () => {
-    vi.mocked(Bookmark.findById).mockResolvedValue(null)
+    mockBookmarkFindById(null)
 
     await expect(
       bookmarkService.deleteBookmark("user1", "unknown"),
@@ -233,8 +267,8 @@ describe("bookmarkService.deleteBookmark", () => {
   })
 
   it("throws when missing params", async () => {
-    await expect(
-      bookmarkService.deleteBookmark("", "bm1"),
-    ).rejects.toThrow("NO_USER_ID_OR_BOOKMARK_ID")
+    await expect(bookmarkService.deleteBookmark("", "bm1")).rejects.toThrow(
+      "NO_USER_ID_OR_BOOKMARK_ID",
+    )
   })
 })
