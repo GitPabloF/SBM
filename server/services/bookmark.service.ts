@@ -129,7 +129,8 @@ const updateBookmark = async (
 const createBookmark = async (userId: string, url: string, tags?: string[]) => {
   if (!userId || !url) throw new Error("NO_USER_ID_OR_URL")
   const metadata = await extractMetadata.extractMetadata(url)
-  const { domain, platform, contentType } = bookmarkClassifier.classifyUrl(url)
+  const { domain, platform, contentType } =
+    await bookmarkClassifier.classifyUrl(url)
 
   const bookmark = await Bookmark.create({
     userId,

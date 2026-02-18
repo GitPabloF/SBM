@@ -1,7 +1,13 @@
 import {
   BOOKMARK_CONTENT_TYPES,
   type BookmarkContentType,
+  IBookmark as Bookmark,
 } from "@/server/models/Bookmark"
+
+interface UrlClassification extends Pick<
+  Bookmark,
+  "domain" | "platform" | "contentType"
+> {}
 
 /**
  * Explicit hostname-to-platform overrides for domains that cannot be inferred
@@ -48,6 +54,10 @@ const PLATFORM_TO_CONTENT_TYPE = new Map<string, BookmarkContentType>(
     ]),
   ),
 )
+
+const YOUTUBE_API_BASE_URL = "https://www.googleapis.com/youtube/v3/videos"
+const YOUTUBE_MUSIC_CATEGORY_ID = "10"
+const YOUTUBE_MUSIC_TOPIC_HINTS = ["/wiki/Music", "/m/04rlf"]
 
 /**
  * Normalizes a hostname for deterministic matching.
@@ -104,11 +114,92 @@ const isPdfPath = (pathname: string): boolean =>
   pathname.toLowerCase().endsWith(".pdf")
 
 /**
+ * Returns true when the value looks like a YouTube video ID.
+ */
+const isValidYoutubeVideoId = (value: string): boolean =>
+  /^[a-zA-Z0-9_-]{11}$/.test(value)
+
+/**
+ * Extracts a YouTube video ID from common URL patterns.
+ */
+const extractYoutubeVideoId = (parsedUrl: URL): string | null => {
+  const hostname = normalizeHostname(parsedUrl.hostname)
+  const pathParts = parsedUrl.pathname.split("/").filter(Boolean)
+
+  if (hostname === "youtu.be") {
+    const candidate = pathParts[0] ?? ""
+    return isValidYoutubeVideoId(candidate) ? candidate : null
+  }
+
+  if (!hostname.endsWith("youtube.com")) return null
+
+  const fromQuery = parsedUrl.searchParams.get("v")
+  if (fromQuery && isValidYoutubeVideoId(fromQuery)) return fromQuery
+
+  const firstPathPart = pathParts[0] ?? ""
+  const secondPathPart = pathParts[1] ?? ""
+  if (
+    ["embed", "shorts", "live", "v"].includes(firstPathPart) &&
+    isValidYoutubeVideoId(secondPathPart)
+  ) {
+    return secondPathPart
+  }
+
+  return null
+}
+
+/**
+ * Resolves YouTube content type using the Videos API.
+ */
+const classifyYoutubeContentType = async (
+  videoId: string,
+): Promise<BookmarkContentType | undefined> => {
+  const apiKey = process.env.YOUTUBE_API_KEY
+  if (!apiKey) return undefined
+
+  try {
+    const url = new URL(YOUTUBE_API_BASE_URL)
+    url.searchParams.set("part", "snippet,topicDetails")
+    url.searchParams.set("id", videoId)
+    url.searchParams.set("key", apiKey)
+
+    const response = await fetch(url.toString(), {
+      signal: AbortSignal.timeout(3000),
+    })
+    if (!response.ok) return undefined
+
+    const payload = (await response.json()) as {
+      items?: Array<{
+        snippet?: { categoryId?: string }
+        topicDetails?: { topicCategories?: string[] }
+      }>
+    }
+
+    const video = payload.items?.[0]
+    if (!video) return undefined
+
+    if (video.snippet?.categoryId === YOUTUBE_MUSIC_CATEGORY_ID) {
+      return "music"
+    }
+
+    const topicCategories = video.topicDetails?.topicCategories ?? []
+    const isMusicTopic = topicCategories.some((topicCategory) =>
+      YOUTUBE_MUSIC_TOPIC_HINTS.some((hint) =>
+        topicCategory.toLowerCase().includes(hint.toLowerCase()),
+      ),
+    )
+    return isMusicTopic ? "music" : "video"
+  } catch {
+    return undefined
+  }
+}
+
+/**
  * Classifies a bookmark URL into `domain`, `platform`, and `contentType`.
  * @param url Bookmark URL.
  * @returns Classification object with safe fallback values.
  */
-const classifyUrl = (url: string) => {
+const classifyUrl = async (url: string): Promise<UrlClassification> => {
   try {
     const parsedUrl = new URL(url)
     const domain = normalizeHostname(parsedUrl.hostname)
@@ -119,9 +210,17 @@ const classifyUrl = (url: string) => {
       .find(Boolean)
 
     const platform = platformFromOverride ?? getPlatformFromHostname(domain)
-    const contentType = isPdfPath(parsedUrl.pathname)
+    let contentType: BookmarkContentType = isPdfPath(parsedUrl.pathname)
       ? "document"
       : (PLATFORM_TO_CONTENT_TYPE.get(platform) ?? "article")
+
+    if (platform === "youtube" && contentType === "video") {
+      const videoId = extractYoutubeVideoId(parsedUrl)
+      if (videoId) {
+        const youtubeContentType = await classifyYoutubeContentType(videoId)
+        if (youtubeContentType) contentType = youtubeContentType
+      }
+    }
 
     return { domain, platform, contentType }
   } catch {
