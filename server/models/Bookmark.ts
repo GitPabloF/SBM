@@ -6,6 +6,7 @@ export const BOOKMARK_CONTENT_TYPES = [
   "video",
   "document",
   "podcast",
+  "social",
   "other",
 ] as const
 

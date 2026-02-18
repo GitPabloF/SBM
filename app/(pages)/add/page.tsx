@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { apiFetch } from "@/lib/api"
+import { BOOKMARKS_UPDATED_EVENT } from "@/lib/constants/bookmarks"
 
 export default function AddPage() {
   const params = useSearchParams()
@@ -26,11 +27,11 @@ export default function AddPage() {
     ;(async () => {
       try {
         setState("saving")
-        const response = await apiFetch("/api/bookmark", {
+        await apiFetch("/api/bookmark", {
           method: "POST",
           body: JSON.stringify({ url, title }),
         })
-        console.log(response)
+        localStorage.setItem(BOOKMARKS_UPDATED_EVENT, Date.now().toString())
         setState("saved")
       } catch (e: any) {
         // if your api returns 401 with error message, you can detect it here

@@ -1,9 +1,29 @@
 "use client"
+import { useEffect } from "react"
 import BookmarkCard from "@/components/block/bookmarkCard"
+import { BOOKMARKS_UPDATED_EVENT } from "@/lib/constants/bookmarks"
 import { useBookmark } from "@/lib/hooks/useBookmark"
 
 export default function HomePage() {
-  const { bookmarks, loading, error, deleteBookmark } = useBookmark()
+  const { bookmarks, loading, error, deleteBookmark, fetchBookmarks } =
+    useBookmark()
+
+  /**
+   * Listen to storage events to refetch bookmarks when they are updated
+   */
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === BOOKMARKS_UPDATED_EVENT) {
+        void fetchBookmarks()
+      }
+    }
+
+    window.addEventListener("storage", handleStorage)
+
+    return () => {
+      window.removeEventListener("storage", handleStorage)
+    }
+  }, [fetchBookmarks])
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white px-4 py-8 sm:px-6 sm:py-12">

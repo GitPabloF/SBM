@@ -36,6 +36,19 @@ describe("bookmarkClassifier.classifyUrl", () => {
     })
   })
 
+  it("classifies youtube music host as music", async () => {
+    process.env.YOUTUBE_API_KEY = ""
+    const result = await bookmarkClassifier.classifyUrl(
+      "https://music.youtube.com/watch?v=dQw4w9WgXcQ",
+    )
+
+    expect(result).toEqual({
+      domain: "music.youtube.com",
+      platform: "youtube-music",
+      contentType: "music",
+    })
+  })
+
   it("classifies youtube music videos using YouTube API", async () => {
     process.env.YOUTUBE_API_KEY = "test-api-key"
     global.fetch = vi.fn().mockResolvedValue({
@@ -76,6 +89,16 @@ describe("bookmarkClassifier.classifyUrl", () => {
       domain: "example.com",
       platform: "example",
       contentType: "article",
+    })
+  })
+
+  it("classifies social platforms", async () => {
+    const result = await bookmarkClassifier.classifyUrl("https://x.com/openai")
+
+    expect(result).toEqual({
+      domain: "x.com",
+      platform: "x",
+      contentType: "social",
     })
   })
 

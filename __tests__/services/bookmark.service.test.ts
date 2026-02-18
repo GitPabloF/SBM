@@ -25,6 +25,7 @@ vi.mock("@/server/models/Bookmark", () => {
       "video",
       "document",
       "podcast",
+      "social",
       "other",
     ],
     Bookmark: {
