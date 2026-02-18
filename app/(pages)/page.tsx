@@ -36,7 +36,7 @@ export default function HomePage() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             {bookmarks.map((bookmark) => (
-              <BookmarkCard key={bookmark._id} bookmark={bookmark} />
+              <BookmarkCard key={bookmark._id.toString()} bookmark={bookmark} />
             ))}
           </div>
         )}
