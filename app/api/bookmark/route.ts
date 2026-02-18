@@ -6,6 +6,9 @@ import { checkRateLimit } from "@/server/middleware/apiLimitre"
 import { NextRequest, NextResponse } from "next/server"
 import bookmarkService from "@/server/services/bookmark.service"
 
+const toErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
 export async function GET(request: NextRequest) {
   try {
     // Limit to 30 requests per 15 minutes to prevent abuse
@@ -85,7 +88,7 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     )
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
+    const message = toErrorMessage(error)
 
     if (message === "NO_USER_ID_OR_URL") {
       return NextResponse.json(
@@ -94,8 +97,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const errorId = crypto.randomUUID()
+    console.error("[api/bookmark][POST]", {
+      errorId,
+      message,
+      error,
+    })
+
     return NextResponse.json(
-      { success: false, error: "Internal server error" },
+      { success: false, error: "Internal server error", errorId },
       { status: 500 },
     )
   }

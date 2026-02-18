@@ -10,6 +10,7 @@ type UseBookmarkResult = {
   loading: boolean
   error: string
   deleteBookmark: (id: string) => Promise<void>
+  updateBookmarkTags: (id: string, tags: string[]) => Promise<void>
   fetchBookmarks: () => Promise<void>
 }
 
@@ -50,9 +51,39 @@ export function useBookmark(): UseBookmarkResult {
     }
   }
 
+  const updateBookmarkTags = async (id: string, tags: string[]) => {
+    try {
+      const response = await apiFetch<ApiResponse<Bookmark>>(
+        `/api/bookmark/${id}`,
+        {
+          method: "PUT",
+          body: JSON.stringify({ tags }),
+        },
+      )
+
+      setBookmarks((prevBookmarks) =>
+        prevBookmarks.map((bookmark) =>
+          bookmark._id.toString() === id ? response.data : bookmark,
+        ),
+      )
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "An error occurred"
+      setError(message)
+      throw error
+    }
+  }
+
   useEffect(() => {
     void fetchBookmarks()
   }, [fetchBookmarks])
 
-  return { bookmarks, loading, error, deleteBookmark, fetchBookmarks }
+  return {
+    bookmarks,
+    loading,
+    error,
+    deleteBookmark,
+    updateBookmarkTags,
+    fetchBookmarks,
+  }
 }

@@ -4,12 +4,14 @@ import { useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { apiFetch } from "@/lib/api"
 import { BOOKMARKS_UPDATED_EVENT } from "@/lib/constants/bookmarks"
+import { isHttpUrl, normalizeIncomingUrl } from "@/lib/utils/url"
 
 export default function AddPage() {
   const params = useSearchParams()
   const router = useRouter()
 
-  const url = params.get("url") || ""
+  const incomingUrl = params.get("url") || ""
+  const url = normalizeIncomingUrl(incomingUrl)
   const title = params.get("title") || ""
 
   const [state, setState] = useState<
@@ -21,6 +23,11 @@ export default function AddPage() {
     if (!url) {
       setState("error")
       setError("Missing url")
+      return
+    }
+    if (!isHttpUrl(url)) {
+      setState("error")
+      setError("Invalid url: must start with http:// or https://")
       return
     }
 
@@ -60,7 +67,7 @@ export default function AddPage() {
           className="border rounded px-3 py-2"
           onClick={() =>
             router.push(
-              `/login?next=/add?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}`,
+              `/login?next=/add?url=${encodeURIComponent(incomingUrl)}&title=${encodeURIComponent(title)}`,
             )
           }
         >
