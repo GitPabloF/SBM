@@ -1,6 +1,7 @@
 import extractMetadata from "@/server/utils/metadata-extractor"
 import { Bookmark } from "../models/Bookmark"
 import { redisUtils, CACHE_TTL } from "@/server/utils/redis"
+import bookmarkClassifier from "@/server/utils/bookmark-classifier"
 
 const CACHE_KEYS = {
   bookmarks: (userId: string, title?: string, tags?: string[]) =>
@@ -40,11 +41,7 @@ const getBookmarks = async (
   const cacheKey = CACHE_KEYS.bookmarks(userId, title, tags)
 
   const cached = await redisUtils.get(cacheKey)
-  if (cached) {
-    console.log(`Cache hit for key: ${cacheKey}`)
-    return cached
-  }
-  console.log(`Cache miss for key: ${cacheKey}`)
+  if (cached) return cached
 
   const query: BookmarkQuery = { userId }
   if (tags && tags.length > 0) {
@@ -54,7 +51,7 @@ const getBookmarks = async (
     query.title = { $regex: title, $options: "i" }
   }
 
-  const bookmarks = await Bookmark.find(query)
+  const bookmarks = await Bookmark.find(query).sort({ createdAt: -1 })
   await redisUtils.set(cacheKey, bookmarks, CACHE_TTL.BOOKMARKS)
 
   return bookmarks
@@ -132,11 +129,16 @@ const updateBookmark = async (
 const createBookmark = async (userId: string, url: string, tags?: string[]) => {
   if (!userId || !url) throw new Error("NO_USER_ID_OR_URL")
   const metadata = await extractMetadata.extractMetadata(url)
+  const { domain, platform, contentType } = bookmarkClassifier.classifyUrl(url)
+
   const bookmark = await Bookmark.create({
     userId,
     url,
     title: metadata.title,
     coverUrl: metadata.coverUrl,
+    domain,
+    platform,
+    contentType,
     tags,
   })
 

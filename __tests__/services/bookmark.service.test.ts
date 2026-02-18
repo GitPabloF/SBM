@@ -10,12 +10,23 @@ interface MockBookmark {
   url?: string
   title?: string
   coverUrl?: string
+  domain?: string
+  platform?: string
+  contentType?: string
   tags?: string[]
 }
 
 // Mock dependencies
 vi.mock("@/server/models/Bookmark", () => {
   return {
+    BOOKMARK_CONTENT_TYPES: [
+      "article",
+      "music",
+      "video",
+      "document",
+      "podcast",
+      "other",
+    ],
     Bookmark: {
       find: vi.fn(),
       findById: vi.fn(),
@@ -50,7 +61,9 @@ const mockBookmarkCreate = (value: MockBookmark) =>
   (Bookmark.create as ReturnType<typeof vi.fn>).mockResolvedValue(value)
 
 const mockBookmarkFind = (value: MockBookmark[]) =>
-  (Bookmark.find as ReturnType<typeof vi.fn>).mockResolvedValue(value)
+  (Bookmark.find as ReturnType<typeof vi.fn>).mockReturnValue({
+    sort: vi.fn().mockResolvedValue(value),
+  })
 
 const mockBookmarkFindById = (value: MockBookmark | null) =>
   (Bookmark.findById as ReturnType<typeof vi.fn>).mockResolvedValue(value)
@@ -73,6 +86,9 @@ describe("bookmarkService.createBookmark", () => {
       url: "https://example.com",
       title: "Example Page",
       coverUrl: "https://example.com/img.jpg",
+      domain: "example.com",
+      platform: "example",
+      contentType: "article",
       tags: ["dev"],
     }
     mockBookmarkCreate(mockBookmark)
@@ -88,6 +104,9 @@ describe("bookmarkService.createBookmark", () => {
         userId: "user1",
         url: "https://example.com",
         title: "Example Page",
+        domain: "example.com",
+        platform: "example",
+        contentType: "article",
         tags: ["dev"],
       }),
     )
