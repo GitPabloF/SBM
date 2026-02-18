@@ -2,6 +2,37 @@ let refreshPromise: Promise<boolean> | null = null
 const REFRESH_URL = "/api/auth/refresh-token"
 const LOGIN_URL = "/login"
 
+export class ApiError extends Error {
+    status: number
+    details?: unknown
+    errorId?: string
+
+    constructor(
+        message: string,
+        options: { status: number; details?: unknown; errorId?: string },
+    ) {
+        super(message)
+        this.name = "ApiError"
+        this.status = options.status
+        this.details = options.details
+        this.errorId = options.errorId
+    }
+}
+
+const formatDetails = (details: unknown): string => {
+    if (!details || typeof details !== "object") return ""
+    const fieldErrors = (details as { fieldErrors?: Record<string, string[]> }).fieldErrors
+    if (!fieldErrors) return ""
+
+    const messages = Object.entries(fieldErrors)
+        .flatMap(([field, errors]) =>
+            (errors ?? []).map((error) => `${field}: ${error}`),
+        )
+        .filter(Boolean)
+
+    return messages.join(", ")
+}
+
 async function refreshAccessToken(): Promise<boolean> {
     if (!refreshPromise) {
         refreshPromise = fetch(REFRESH_URL, {
@@ -52,7 +83,14 @@ export async function apiFetch<T>(
 
     if (!res.ok) {
         const data = await res.json().catch(() => null)
-        throw new Error(data?.error || "Request failed")
+        const details = formatDetails(data?.details)
+        const baseMessage = data?.error || "Request failed"
+        const message = details ? `${baseMessage}. ${details}` : baseMessage
+        throw new ApiError(message, {
+            status: res.status,
+            details: data?.details,
+            errorId: data?.errorId,
+        })
     }
 
     return res.json()

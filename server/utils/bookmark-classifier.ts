@@ -1,40 +1,14 @@
 import {
-  BOOKMARK_CONTENT_TYPES,
   type BookmarkContentType,
   IBookmark as Bookmark,
 } from "@/server/models/Bookmark"
+import {
+  getPlatformMetadata,
+  PLATFORM_CONTENT_TYPE_BY_SLUG,
+  PLATFORM_SLUG_BY_DOMAIN,
+} from "@/lib/constants/platforms"
 
-interface UrlClassification extends Pick<
-  Bookmark,
-  "domain" | "platform" | "contentType"
-> {}
-
-/**
- * Explicit hostname-to-platform overrides for domains that cannot be inferred
- * correctly using generic hostname parsing.
- */
-const PLATFORM_BY_DOMAIN: Record<string, string> = {
-  "apple.news": "apple-news",
-  "podcasts.apple.com": "apple-podcasts",
-  "audible.com": "audible",
-  "bluesky.app": "bluesky",
-  "canva.com": "canva",
-  "discord.gg": "discord",
-  "dropbox.com": "dropbox",
-  "music.apple.com": "apple-music",
-  "music.amazon.com": "amazon-music",
-  "music.youtube.com": "youtube-music",
-  "news.ycombinator.com": "hacker-news",
-  "onedrive.live.com": "onedrive",
-  "pca.st": "pocket-casts",
-  "docs.google.com": "google-docs",
-  "drive.google.com": "google-drive",
-  "reddit.com": "reddit",
-  "sharepoint.com": "sharepoint",
-  "threads.net": "threads",
-  "x.com": "x",
-  "youtu.be": "youtube",
-}
+type UrlClassification = Pick<Bookmark, "domain" | "platform" | "contentType">
 
 /**
  * Prefixes used by common second-level TLD patterns such as `co.uk`.
@@ -48,79 +22,6 @@ const MULTI_PART_TLD_PREFIXES = new Set([
   "gov",
   "edu",
 ])
-
-/**
- * Platform groups used to resolve `contentType` from a classified platform.
- */
-const CONTENT_TYPE_PLATFORMS: Record<BookmarkContentType, string[]> = {
-  article: [],
-  document: [
-    "canva",
-    "dropbox",
-    "figma",
-    "google-docs",
-    "google-drive",
-    "notion",
-    "onedrive",
-    "scribd",
-    "sharepoint",
-    "slideshare",
-  ],
-  music: [
-    "amazon-music",
-    "apple-music",
-    "audiomack",
-    "deezer",
-    "soundcloud",
-    "spotify",
-    "bandcamp",
-    "tidal",
-    "youtube-music",
-  ],
-  social: [
-    "bluesky",
-    "discord",
-    "facebook",
-    "hacker-news",
-    "instagram",
-    "linkedin",
-    "mastodon",
-    "pinterest",
-    "reddit",
-    "snapchat",
-    "threads",
-    "twitter",
-    "x",
-  ],
-  other: [],
-  podcast: [
-    "apple-podcasts",
-    "apple-news",
-    "audible",
-    "castbox",
-    "overcast",
-    "pocket-casts",
-    "substack",
-  ],
-  video: [
-    "bilibili",
-    "dailymotion",
-    "loom",
-    "tiktok",
-    "twitch",
-    "vimeo",
-    "youtube",
-  ],
-}
-
-const PLATFORM_TO_CONTENT_TYPE = new Map<string, BookmarkContentType>(
-  BOOKMARK_CONTENT_TYPES.flatMap((contentType) =>
-    CONTENT_TYPE_PLATFORMS[contentType].map((platform) => [
-      platform,
-      contentType,
-    ]),
-  ),
-)
 
 const YOUTUBE_API_BASE_URL = "https://www.googleapis.com/youtube/v3/videos"
 const YOUTUBE_MUSIC_CATEGORY_ID = "10"
@@ -273,15 +174,15 @@ const classifyUrl = async (url: string): Promise<UrlClassification> => {
     const candidates = getDomainCandidates(domain)
 
     const platformFromOverride = candidates
-      .map((candidate) => PLATFORM_BY_DOMAIN[candidate])
+      .map((candidate) => PLATFORM_SLUG_BY_DOMAIN[candidate])
       .find(Boolean)
 
-    const platform = platformFromOverride ?? getPlatformFromHostname(domain)
+    const platformSlug = platformFromOverride ?? getPlatformFromHostname(domain)
     let contentType: BookmarkContentType = isPdfPath(parsedUrl.pathname)
       ? "document"
-      : (PLATFORM_TO_CONTENT_TYPE.get(platform) ?? "article")
+      : (PLATFORM_CONTENT_TYPE_BY_SLUG[platformSlug] ?? "article")
 
-    if (platform === "youtube" && contentType === "video") {
+    if (platformSlug === "youtube" && contentType === "video") {
       const videoId = extractYoutubeVideoId(parsedUrl)
       if (videoId) {
         const youtubeContentType = await classifyYoutubeContentType(videoId)
@@ -289,7 +190,11 @@ const classifyUrl = async (url: string): Promise<UrlClassification> => {
       }
     }
 
-    return { domain, platform, contentType }
+    return {
+      domain,
+      platform: getPlatformMetadata(platformSlug).label,
+      contentType,
+    }
   } catch {
     return { domain: "", platform: "unknown", contentType: "article" as const }
   }

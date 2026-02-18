@@ -18,7 +18,7 @@ describe("bookmarkClassifier.classifyUrl", () => {
 
     expect(result).toEqual({
       domain: "open.spotify.com",
-      platform: "spotify",
+      platform: "Spotify",
       contentType: "music",
     })
   })
@@ -31,7 +31,7 @@ describe("bookmarkClassifier.classifyUrl", () => {
 
     expect(result).toEqual({
       domain: "youtu.be",
-      platform: "youtube",
+      platform: "YouTube",
       contentType: "video",
     })
   })
@@ -44,7 +44,7 @@ describe("bookmarkClassifier.classifyUrl", () => {
 
     expect(result).toEqual({
       domain: "music.youtube.com",
-      platform: "youtube-music",
+      platform: "YouTube Music",
       contentType: "music",
     })
   })
@@ -63,7 +63,7 @@ describe("bookmarkClassifier.classifyUrl", () => {
     expect(global.fetch).toHaveBeenCalledTimes(1)
     expect(result).toEqual({
       domain: "youtube.com",
-      platform: "youtube",
+      platform: "YouTube",
       contentType: "music",
     })
   })
@@ -75,7 +75,7 @@ describe("bookmarkClassifier.classifyUrl", () => {
 
     expect(result).toEqual({
       domain: "docs.google.com",
-      platform: "google-docs",
+      platform: "Google Docs",
       contentType: "document",
     })
   })
@@ -97,7 +97,19 @@ describe("bookmarkClassifier.classifyUrl", () => {
 
     expect(result).toEqual({
       domain: "x.com",
-      platform: "x",
+      platform: "X",
+      contentType: "social",
+    })
+  })
+
+  it("capitalizes mixed-case brand platforms", async () => {
+    const result = await bookmarkClassifier.classifyUrl(
+      "https://www.linkedin.com/company/openai",
+    )
+
+    expect(result).toEqual({
+      domain: "linkedin.com",
+      platform: "LinkedIn",
       contentType: "social",
     })
   })
