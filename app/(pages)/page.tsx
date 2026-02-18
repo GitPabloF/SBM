@@ -3,7 +3,7 @@ import BookmarkCard from "@/components/block/bookmarkCard"
 import { useBookmark } from "@/lib/hooks/useBookmark"
 
 export default function HomePage() {
-  const { bookmarks, loading, error } = useBookmark()
+  const { bookmarks, loading, error, deleteBookmark } = useBookmark()
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white px-4 py-8 sm:px-6 sm:py-12">
@@ -36,7 +36,11 @@ export default function HomePage() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             {bookmarks.map((bookmark) => (
-              <BookmarkCard key={bookmark._id.toString()} bookmark={bookmark} />
+              <BookmarkCard
+                key={bookmark._id.toString()}
+                bookmark={bookmark}
+                handleDeleteBookmark={deleteBookmark}
+              />
             ))}
           </div>
         )}

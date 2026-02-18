@@ -9,6 +9,7 @@ type UseBookmarkResult = {
   bookmarks: Bookmark[]
   loading: boolean
   error: string
+  deleteBookmark: (id: string) => Promise<void>
 }
 
 
@@ -16,6 +17,20 @@ export function useBookmark(): UseBookmarkResult {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+
+  const deleteBookmark = async (id: string) => {
+    try {
+      await apiFetch(`/api/bookmark/${id}`, {
+        method: "DELETE",
+      })
+      setBookmarks((prevBookmarks) =>
+        prevBookmarks.filter((b) => b._id.toString() !== id),
+      )
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "An error occurred"
+      setError(message)
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -53,5 +68,5 @@ export function useBookmark(): UseBookmarkResult {
     }
   }, [])
 
-  return { bookmarks, loading, error }
+  return { bookmarks, loading, error, deleteBookmark }
 }
