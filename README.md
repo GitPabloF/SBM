@@ -37,14 +37,6 @@ npm run dev
 
 The app runs at `http://localhost:3000`.
 
-### Optional YouTube Classification
-
-To classify YouTube bookmarks as `music` vs `video`, set:
-
-```bash
-YOUTUBE_API_KEY=your-youtube-data-api-v3-key
-```
-
 Without this key, YouTube links default to `video`.
 
 ### Seeding
@@ -54,6 +46,7 @@ npm run seed
 ```
 
 Creates two default users (configurable via env vars):
+
 - **Admin**: `admin@local.dev` / `Changeme123`
 - **User**: `user@local.dev` / `Changeme123`
 
@@ -325,10 +318,10 @@ Delete a bookmark.
 
 API routes are protected by Redis-backed rate limiting (sliding window per IP):
 
-| Routes | Limit |
-|---|---|
-| Login, Signup, Change password | 10 req / 15 min |
-| Refresh token | 30 req / 15 min |
-| All other routes | 100 req / 15 min |
+| Routes                         | Limit            |
+| ------------------------------ | ---------------- |
+| Login, Signup, Change password | 10 req / 15 min  |
+| Refresh token                  | 30 req / 15 min  |
+| All other routes               | 100 req / 15 min |
 
 Rate limiting is disabled in development (`NODE_ENV=development`).
