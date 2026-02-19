@@ -37,6 +37,14 @@ npm run dev
 
 The app runs at `http://localhost:3000`.
 
+### Optional YouTube Classification
+
+To classify YouTube bookmarks as `music` vs `video`, set:
+
+```bash
+YOUTUBE_API_KEY=your-youtube-data-api-v3-key
+```
+
 Without this key, YouTube links default to `video`.
 
 ### Seeding
